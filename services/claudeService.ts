@@ -712,7 +712,9 @@ const enrichMissingPSSNumbers = async (
       });
       if (!apiRes.ok) throw new Error(`HTTP ${apiRes.status}`);
       const { text: raw } = await apiRes.json();
-      const parsed: Record<string, string | null> = JSON.parse(jsonrepair(raw.replace(/^```json\s*/i, '').replace(/```\s*$/i, '').trim()));
+      const cleaned = raw.replace(/\*/g, '').replace(/^```json\s*/i, '').replace(/```\s*$/i, '').trim();
+      const jsonBlock = cleaned.match(/\{[\s\S]*\}/)?.[0] ?? cleaned;
+      const parsed: Record<string, string | null> = JSON.parse(jsonrepair(jsonBlock));
       console.log(`[ZHL] enrichMissingPSSNumbers attempt ${attempt} result:`, parsed);
 
       // Merge results — keep any non-null value found across attempts

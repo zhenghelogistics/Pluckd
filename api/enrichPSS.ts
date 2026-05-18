@@ -48,7 +48,7 @@ export default async function handler(req: any, res: any) {
 
 ${listLines}
 
-Return ONLY a JSON object — BL number as key, PSS/SI number with "#" prefix (or null if not found) as value:
+Return ONLY a raw JSON object with no markdown, no asterisks, no explanation — BL number as key, PSS/SI number with "#" prefix (or null if not found) as value:
 {"MEDUUD123456": "#25101234", "MEDUUD999999": null}`,
             },
           ],
