@@ -624,6 +624,10 @@ export async function generatePVPdfFromScratch(
     totalStr = computedTotal > 0 ? fmt(computedTotal) : stripCurrency(firstPv?.total_payable_amount || firstPv?.payable_amount || '');
   }
 
+  // Pad to minimum 8 rows so all PV PDFs have a consistent table height
+  const MIN_TABLE_ROWS = 8;
+  while (rows.length < MIN_TABLE_ROWS) rows.push({ desc: '', amount: null });
+
   // ── Page header: navy left stripe + logo left-aligned + company name ──
   const drawHeader = (p: PDFPage): number => {
     let y = H - 20;
@@ -645,24 +649,23 @@ export async function generatePVPdfFromScratch(
         height: dims.height,
       });
     } else {
-      dt(p, 'ZHL  Zhenghe Logistics Pte Ltd', logoX + 10, y - HEADER_H / 2 - 4, 14, fontB);
+      dt(p, 'ZHENGHE LOGISTICS PTE LTD', logoX + 10, y - HEADER_H / 2 - 4, 14, fontB);
     }
 
     y -= HEADER_H + 8;
 
-    // "Payment Voucher" + Ref underline
+    // "Payment Voucher" title — no separator line below
     dt(p, 'Payment Voucher', ML, y - 13, 16, fontB);
-    dt(p, 'Ref:', MR_X - 165, y - 13, 9, fontB);
-    dl(p, MR_X - 140, y - 15, MR_X, y - 15);
 
     y -= 26;
-    dl(p, ML, y, MR_X, y, 0.8);
     y -= 4;
 
-    // Payment To / Date row
+    // Payment To / Ref / Date row — Ref: aligned horizontally with Date:
     dt(p, 'Payment To:', ML, y - 13, 9, fontB);
     dt(p, payTo, ML + 62, y - 13, 9, fontR);
-    dl(p, ML + 62, y - 15, MR_X - 125, y - 15);
+    dl(p, ML + 62, y - 15, MR_X - 225, y - 15);
+    dt(p, 'Ref:', MR_X - 220, y - 13, 9, fontB);
+    dl(p, MR_X - 196, y - 15, MR_X - 130, y - 15);
     dt(p, 'Date:', MR_X - 120, y - 13, 9, fontB);
     dt(p, dateStr, MR_X - 95, y - 13, 9, fontR);
     dl(p, MR_X - 95, y - 15, MR_X, y - 15);
@@ -778,10 +781,10 @@ export async function generatePVPdfFromScratch(
 
     fy -= 44;
     dt(p, 'Approved By:', ML, fy, 9, fontB);
-    dl(p, ML, fy - 20, ML + 200, fy - 20);
+    dl(p, ML, fy - 20, ML + 140, fy - 20);
 
-    dt(p, 'Received By:', ML + 220, fy, 9, fontB);
-    dl(p, ML + 220, fy - 20, ML + 335, fy - 20);
+    dt(p, 'Received By:', ML + 165, fy, 9, fontB);
+    dl(p, ML + 165, fy - 20, ML + 305, fy - 20);
 
     // RIGHT COLUMN: process checklist pinned to bottom-right corner of page
     if (showChecklist) drawChecklist(p, 250);
