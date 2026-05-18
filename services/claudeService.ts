@@ -693,41 +693,65 @@ const enrichMissingPSSNumbers = async (
   onProgress?.('Filling in missing PSS numbers...');
   console.log(`[ZHL] enrichMissingPSSNumbers: querying for ${missing.length} BL(s):`, missing.map(m => m.bl_number).join(', '));
 
-  try {
-    const base64 = await fileToBase64(file);
+  const base64 = await fileToBase64(file);
+  const listLines = missing.map(m =>
+    `- BL ${m.bl_number}${m.carrier_invoice_number ? ` (carrier invoice ${m.carrier_invoice_number})` : ''}`
+  ).join('\n');
 
-    const listLines = missing.map(m =>
-      `- BL ${m.bl_number}${m.carrier_invoice_number ? ` (carrier invoice ${m.carrier_invoice_number})` : ''}`
-    ).join('\n');
+  // Try up to 3 times — a cold Vercel function or a momentary Claude miss
+  // on a large PDF should not permanently block PSS number extraction.
+  const MAX_PSS_ATTEMPTS = 3;
+  let pssMap: Record<string, string | null> = {};
 
-    const apiRes = await fetch('/api/enrichPSS', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ base64, listLines }),
-    });
-    if (!apiRes.ok) throw new Error(`HTTP ${apiRes.status}`);
-    const { text: raw } = await apiRes.json();
-    const pssMap: Record<string, string | null> = JSON.parse(jsonrepair(raw.replace(/^```json\s*/i, '').replace(/```\s*$/i, '').trim()));
-    console.log('[ZHL] enrichMissingPSSNumbers result:', pssMap);
-
-    return docs.map(doc => {
-      if (doc.document_type !== 'Payment Voucher/GL') return doc;
-      const entries = doc.payment_voucher_details?.bl_entries;
-      if (!entries) return doc;
-      let changed = false;
-      const patched: BLEntry[] = entries.map(entry => {
-        if (entry.pss_invoice_number || !entry.bl_number) return entry;
-        const found = pssMap[entry.bl_number] ?? pssMap[entry.bl_number.trim().toUpperCase()] ?? null;
-        if (!found) return entry;
-        changed = true;
-        return { ...entry, pss_invoice_number: found };
+  for (let attempt = 1; attempt <= MAX_PSS_ATTEMPTS; attempt++) {
+    try {
+      const apiRes = await fetch('/api/enrichPSS', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ base64, listLines }),
       });
-      return changed ? { ...doc, payment_voucher_details: { ...doc.payment_voucher_details, bl_entries: patched } } : doc;
-    });
-  } catch (err) {
-    console.warn('[ZHL] enrichMissingPSSNumbers failed — returning docs unchanged', err);
-    return docs;
+      if (!apiRes.ok) throw new Error(`HTTP ${apiRes.status}`);
+      const { text: raw } = await apiRes.json();
+      const parsed: Record<string, string | null> = JSON.parse(jsonrepair(raw.replace(/^```json\s*/i, '').replace(/```\s*$/i, '').trim()));
+      console.log(`[ZHL] enrichMissingPSSNumbers attempt ${attempt} result:`, parsed);
+
+      // Merge results — keep any non-null value found across attempts
+      for (const [bl, pss] of Object.entries(parsed)) {
+        if (pss && !pssMap[bl]) pssMap[bl] = pss;
+        if (pss && !pssMap[bl.trim().toUpperCase()]) pssMap[bl.trim().toUpperCase()] = pss;
+      }
+
+      // Check if all missing BLs are now resolved
+      const stillMissing = missing.filter(m => !pssMap[m.bl_number] && !pssMap[m.bl_number.trim().toUpperCase()]);
+      if (stillMissing.length === 0) {
+        console.log(`[ZHL] enrichMissingPSSNumbers: all resolved on attempt ${attempt}`);
+        break;
+      }
+
+      if (attempt < MAX_PSS_ATTEMPTS) {
+        console.warn(`[ZHL] enrichMissingPSSNumbers: ${stillMissing.length} still missing after attempt ${attempt}, retrying...`);
+        await new Promise(r => setTimeout(r, 1500 * attempt));
+      }
+    } catch (err) {
+      console.warn(`[ZHL] enrichMissingPSSNumbers attempt ${attempt} failed:`, err);
+      if (attempt < MAX_PSS_ATTEMPTS) await new Promise(r => setTimeout(r, 1500 * attempt));
+    }
   }
+
+  return docs.map(doc => {
+    if (doc.document_type !== 'Payment Voucher/GL') return doc;
+    const entries = doc.payment_voucher_details?.bl_entries;
+    if (!entries) return doc;
+    let changed = false;
+    const patched: BLEntry[] = entries.map(entry => {
+      if (entry.pss_invoice_number || !entry.bl_number) return entry;
+      const found = pssMap[entry.bl_number] ?? pssMap[entry.bl_number.trim().toUpperCase()] ?? null;
+      if (!found) return entry;
+      changed = true;
+      return { ...entry, pss_invoice_number: found };
+    });
+    return changed ? { ...doc, payment_voucher_details: { ...doc.payment_voucher_details, bl_entries: patched } } : doc;
+  });
 };
 
 export const extractDocumentData = async (
