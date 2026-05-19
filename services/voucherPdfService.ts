@@ -402,6 +402,7 @@ export async function generatePVPdfFromScratch(
   docs: DocumentData[],
   currency: 'SGD' | 'USD',
   showChecklist = false,
+  title = 'Payment Voucher',
 ): Promise<Blob> {
   const pdfDoc = await PDFDocument.create();
   const fontR = await pdfDoc.embedFont(StandardFonts.Helvetica);
@@ -654,8 +655,8 @@ export async function generatePVPdfFromScratch(
 
     y -= HEADER_H + 8;
 
-    // "Payment Voucher" title — no separator line below
-    dt(p, 'Payment Voucher', ML, y - 13, 16, fontB);
+    // Document title — no separator line below
+    dt(p, title, ML, y - 13, 16, fontB);
 
     y -= 26;
     y -= 4;
@@ -836,6 +837,13 @@ export async function generatePVPdfFromScratch(
 
   const bytes = await pdfDoc.save();
   return new Blob([bytes], { type: 'application/pdf' });
+}
+
+export async function generateRVPdfFromScratch(
+  docs: DocumentData[],
+  currency: 'SGD' | 'USD',
+): Promise<Blob> {
+  return generatePVPdfFromScratch(docs, currency, false, 'Receipt Voucher');
 }
 
 // Generates a preview PDF matching real OOCL data for team sign-off.
