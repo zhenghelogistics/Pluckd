@@ -710,6 +710,7 @@ export async function generatePVPdfFromScratch(
       { ref: '4', step: 'Fees',          req: ['Bank Charges recorded', '[ ] NA  [ ] $0.50  [ ] $0.20 other:'] },
       { ref: '5', step: 'Reference',     req: ['PV number written on document'] },
       { ref: '6', step: 'Filing',        req: ['Scanned and attached to system'] },
+      { ref: '7', step: 'Bill back',     req: ['[ ] NA  [ ] Bill back', 'To:'] },
     ];
     const rowHeights = entries.map(e => e.req.length > 1 ? DH : SH);
 
