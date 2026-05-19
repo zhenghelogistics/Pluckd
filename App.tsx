@@ -4,7 +4,7 @@ import { useFileProcessor } from './hooks/useFileProcessor';
 import ResultsTable from './components/ResultsTable';
 import CrmBillingTab from './components/CrmBillingTab';
 import ExportPermitTab from './components/ExportPermitTab';
-import { generatePVPdfFromScratch } from './services/voucherPdfService';
+import { generatePVPdfFromScratch, generateRVPdfFromScratch } from './services/voucherPdfService';
 import DeveloperNotes from './components/DeveloperNotes';
 import LoginScreen from './components/LoginScreen';
 import CustomRulesPanel from './components/CustomRulesPanel';
@@ -79,6 +79,7 @@ function App() {
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const [pvCurrencyModal, setPvCurrencyModal] = useState(false);
   const [pvExportDocs, setPvExportDocs] = useState<DocumentData[] | null>(null);
+  const [pvExportType, setPvExportType] = useState<'pv' | 'rv'>('pv');
   const [toasts, setToasts] = useState<Toast[]>([]);
   const addToast = (message: string, type: 'error' | 'success' = 'error') => {
     const id = crypto.randomUUID();
@@ -125,8 +126,9 @@ function App() {
   const handleDragLeave = (e: React.DragEvent) => { e.preventDefault(); setIsDragging(false); };
   const handleDrop = (e: React.DragEvent) => { e.preventDefault(); setIsDragging(false); addFilesToQueue(Array.from(e.dataTransfer.files)); };
 
-  const handleGenerateVouchers = (docs: DocumentData[]) => {
+  const handleGenerateVouchers = (docs: DocumentData[], type: 'pv' | 'rv' = 'pv') => {
     setPvExportDocs(docs);
+    setPvExportType(type);
     setPvCurrencyModal(true);
   };
 
@@ -137,15 +139,20 @@ function App() {
     if (!docsToExport || docsToExport.length === 0) return;
     setIsGeneratingPdf(true);
     try {
-      const blob = await generatePVPdfFromScratch(docsToExport, currency, userRole === 'accounts');
+      const isRv = pvExportType === 'rv';
+      const blob = isRv
+        ? await generateRVPdfFromScratch(docsToExport, currency)
+        : await generatePVPdfFromScratch(docsToExport, currency, userRole === 'accounts');
       const docType = docsToExport[0]?.document_type;
-      const filename = docType === 'CDAS Report'
-        ? `cdas_voucher_${currency}.pdf`
-        : docType === 'Allied Report'
-          ? `allied_voucher_${currency}.pdf`
-          : docsToExport.length === 1
-            ? `voucher_${docsToExport[0].payment_voucher_details?.pss_invoice_number || 'export'}_${currency}.pdf`
-            : `payment_vouchers_${currency}.pdf`;
+      const filename = isRv
+        ? `receipt_voucher_${currency}.pdf`
+        : docType === 'CDAS Report'
+          ? `cdas_voucher_${currency}.pdf`
+          : docType === 'Allied Report'
+            ? `allied_voucher_${currency}.pdf`
+            : docsToExport.length === 1
+              ? `voucher_${docsToExport[0].payment_voucher_details?.pss_invoice_number || 'export'}_${currency}.pdf`
+              : `payment_vouchers_${currency}.pdf`;
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url; a.download = filename;
@@ -453,10 +460,16 @@ function App() {
               {activeTab === 'Payment Voucher/GL' && (() => {
                 const docs = files.flatMap(f => (f.status === FileStatus.COMPLETED || f.status === FileStatus.WARNING) ? (f.data ?? []).filter(d => d.document_type === 'Payment Voucher/GL') : []);
                 return docs.length > 0 ? (
-                  <button onClick={() => handleGenerateVouchers(docs)} disabled={isGeneratingPdf} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-gradient-to-br from-secondary to-primary-container text-white text-xs font-semibold disabled:opacity-70 disabled:cursor-not-allowed transition-opacity cursor-pointer">
-                    {isGeneratingPdf ? <Loader2 size={14} className="animate-spin" /> : <FileText size={14} />}
-                    {isGeneratingPdf ? 'Generating...' : 'Export Vouchers PDF'}
-                  </button>
+                  <>
+                    <button onClick={() => handleGenerateVouchers(docs, 'pv')} disabled={isGeneratingPdf} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-gradient-to-br from-secondary to-primary-container text-white text-xs font-semibold disabled:opacity-70 disabled:cursor-not-allowed transition-opacity cursor-pointer">
+                      {isGeneratingPdf ? <Loader2 size={14} className="animate-spin" /> : <FileText size={14} />}
+                      {isGeneratingPdf ? 'Generating...' : 'Export Vouchers PDF'}
+                    </button>
+                    <button onClick={() => handleGenerateVouchers(docs, 'rv')} disabled={isGeneratingPdf} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-gradient-to-br from-tertiary to-secondary-container text-white text-xs font-semibold disabled:opacity-70 disabled:cursor-not-allowed transition-opacity cursor-pointer">
+                      {isGeneratingPdf ? <Loader2 size={14} className="animate-spin" /> : <FileText size={14} />}
+                      {isGeneratingPdf ? 'Generating...' : 'Export Receipt PDF'}
+                    </button>
+                  </>
                 ) : null;
               })()}
 
