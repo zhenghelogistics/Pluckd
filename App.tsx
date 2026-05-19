@@ -465,7 +465,7 @@ function App() {
                       {isGeneratingPdf ? <Loader2 size={14} className="animate-spin" /> : <FileText size={14} />}
                       {isGeneratingPdf ? 'Generating...' : 'Export Vouchers PDF'}
                     </button>
-                    <button onClick={() => handleGenerateVouchers(docs, 'rv')} disabled={isGeneratingPdf} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-gradient-to-br from-tertiary to-secondary-container text-white text-xs font-semibold disabled:opacity-70 disabled:cursor-not-allowed transition-opacity cursor-pointer">
+                    <button onClick={() => handleGenerateVouchers(docs, 'rv')} disabled={isGeneratingPdf} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-gradient-to-br from-secondary to-primary-container text-white text-xs font-semibold disabled:opacity-70 disabled:cursor-not-allowed transition-opacity cursor-pointer">
                       {isGeneratingPdf ? <Loader2 size={14} className="animate-spin" /> : <FileText size={14} />}
                       {isGeneratingPdf ? 'Generating...' : 'Export Receipt PDF'}
                     </button>
