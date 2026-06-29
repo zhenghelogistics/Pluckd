@@ -1,7 +1,5 @@
 # Pluckd — Logistics Document Extraction App
 
-> Built by Zhenghe Logistics. Entirely designed, architected, and written by [Claude](https://claude.ai) (Anthropic).
-
 Pluckd is an internal AI-powered document extraction tool that processes logistics PDFs and exports structured data as CSV. It uses Claude (`claude-sonnet-4-6`) to read and extract data from complex, multi-format shipping documents — no separate OCR engine, no templates, no manual entry.
 
 ---
