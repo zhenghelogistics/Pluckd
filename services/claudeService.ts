@@ -4,6 +4,8 @@ import { DocumentData, ExtractionResponse, BLEntry, ExtractionResult, Extraction
 import { AppConfig } from "../config";
 import { BASE_SYSTEM_PROMPT } from "../prompts/base";
 import { buildSystemPrompt } from "../prompts/buildPrompt";
+import { parsePackingListText } from "./packingListParser";
+import { crossCheck } from "./crossCheck";
 
 // Helper to access nested properties safely with dot notation
 const getNestedValue = (obj: any, path: string) => {
@@ -925,9 +927,85 @@ export const extractDocumentData = async (
   const final = deduplicateByContainer(deduplicateDocuments(processed));
   logDocs(`Final output (${final.length} docs)`, final, '#10b981');
 
+  // ── Cross-check layer (additive, logistics/PSS only) ─────────────────────────
+  // Read the PDF's TEXT with code, parse it deterministically, and compare against the AI's
+  // reading of the same document. Never removes or edits data — it only raises warnings so an
+  // incomplete/misread packing list surfaces as a WARNING instead of a silent "complete".
+  let crossCheckIssues = 0;
+  if (role === 'logistics') {
+    try {
+      const ccWarnings = await crossCheckPackingList(file, final);
+      if (ccWarnings.length) {
+        crossCheckIssues = ccWarnings.length;
+        extractionWarnings.push(...ccWarnings);
+        ccWarnings.forEach((w) => console.warn('[ZHL] cross-check:', w));
+      }
+    } catch (e: any) {
+      // A cross-check failure must never break extraction — just note it.
+      console.warn('[ZHL] cross-check errored (non-fatal):', e?.message);
+    }
+  }
+
   const extractionStatus: ExtractionStatus =
-    failedCount === 0 ? 'complete' :
-    final.length === 0 ? 'failed' : 'partial';
+    failedCount > 0 ? (final.length === 0 ? 'failed' : 'partial')
+    : crossCheckIssues > 0 ? 'partial'
+    : 'complete';
 
   return { status: extractionStatus, documents: final, warnings: extractionWarnings, chunkDiagnostics };
+};
+
+const round3 = (n: number): number => Math.round(n * 1000) / 1000;
+
+// Compare the code (text-layer) reading of a packing list against the AI's reading of the same
+// file. Returns human-readable warnings (empty = all good / not a recognised packing list).
+// Pure orchestration + pinpointed error reporting; safe to fail (returns a note, never throws up).
+export const crossCheckPackingList = async (file: File, docs: DocumentData[]): Promise<string[]> => {
+  const pssDocs = docs.filter((d) => d.document_type === 'Export Permit Declaration (PSS)');
+  if (!pssDocs.length) return [];
+
+  // Extract text with code (pdfjs imported dynamically so tests never load the worker).
+  let text = '';
+  try {
+    const { extractPdfText } = await import('./pdfText');
+    const res = await extractPdfText(file);
+    if (res.error) return [`Cross-check skipped: could not read PDF text (${res.error}).`];
+    text = res.text;
+  } catch (e: any) {
+    return [`Cross-check skipped: text layer unavailable (${e?.message ?? 'unknown'}).`];
+  }
+  if (!text.trim()) return []; // pure scan / no text layer — nothing to cross-check against
+
+  const code = parsePackingListText(text);
+  if (!code.items.length) return []; // not a recognised packing-list layout — skip quietly
+
+  const warnings: string[] = [];
+  for (const e of code.parse_errors) warnings.push(`Packing-list read: ${e}`);
+
+  // The code reading is ground truth (deterministic). Confirm it reconciles to the doc's own total.
+  const codeNett = round3(code.items.reduce((s, i) => s + i.nett_weight, 0));
+  if (code.printed_nett_total != null && Math.abs(codeNett - code.printed_nett_total) > 0.01) {
+    warnings.push(`Document total mismatch: ${code.items.length} rows sum to nett ${codeNett} but the printed Sub Total is ${code.printed_nett_total}.`);
+  }
+
+  // Compare the AI's reading against the code ground truth.
+  for (const d of pssDocs) {
+    const aiItems = d.export_permit_pss?.items ?? [];
+    if (aiItems.length !== code.items.length) {
+      warnings.push(`AI extracted ${aiItems.length} row(s) but the document has ${code.items.length}. Check for dropped or duplicated rows.`);
+    }
+    const aiNett = round3(aiItems.reduce((s, i) => s + (i.nett_weight != null && String(i.nett_weight) !== '' ? parseFloat(String(i.nett_weight)) : 0), 0));
+    if (code.printed_nett_total != null && Math.abs(aiNett - code.printed_nett_total) > 0.01) {
+      warnings.push(`AI nett total ${aiNett} ≠ document total ${code.printed_nett_total} — AI may have missed or misread rows.`);
+    }
+    // Row-level pinpointing when the AI items carry line numbers.
+    const aiRows = aiItems
+      .filter((i: any) => typeof i.line_no === 'number')
+      .map((i: any) => ({ line_no: i.line_no as number, item_number: i.item_number ?? null, nett_weight: i.nett_weight != null ? parseFloat(String(i.nett_weight)) : null }));
+    if (aiRows.length) {
+      const codeRows = code.items.map((i) => ({ line_no: i.line_no, item_number: i.item_number, nett_weight: i.nett_weight }));
+      const rep = crossCheck(codeRows, aiRows, ['item_number', 'nett_weight']);
+      for (const line of rep.report_lines.slice(1)) warnings.push(`Cross-check → ${line}`);
+    }
+  }
+  return warnings;
 };
