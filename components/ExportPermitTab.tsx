@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { Download } from 'lucide-react';
-import { ProcessedFile, FileStatus, ExportPermitPSSItem } from '../types';
+import { ProcessedFile, FileStatus, ExportPermitPSSItem, DocumentData } from '../types';
+import { mergePackingListsByPlNo } from '../services/mergePackingLists';
 
 interface Props {
   files: ProcessedFile[];
@@ -8,14 +9,29 @@ interface Props {
 
 const ExportPermitTab: React.FC<Props> = ({ files }) => {
   const items = useMemo(() => {
-    const result: (ExportPermitPSSItem & { _filename: string })[] = [];
+    // Gather every PSS doc across the processed files, remembering each doc's source filename.
+    const docs: DocumentData[] = [];
+    const fileOf = new Map<DocumentData, string>();
     for (const file of files) {
       if (file.status !== FileStatus.COMPLETED && file.status !== FileStatus.WARNING) continue;
       for (const doc of file.data ?? []) {
         if (doc.document_type !== 'Export Permit Declaration (PSS)') continue;
-        for (const item of doc.export_permit_pss?.items ?? []) {
-          result.push({ ...item, _filename: file.file.name });
-        }
+        docs.push(doc);
+        fileOf.set(doc, file.file.name);
+      }
+    }
+    // Cross-file merge: files sharing a PL No become one logical packing list (rows unioned,
+    // Country of Origin back-filled, mis-placed NPBB-in-PO cleaned). Non-destructive.
+    const merged = mergePackingListsByPlNo(docs);
+    const result: (ExportPermitPSSItem & { _filename: string })[] = [];
+    for (const doc of merged) {
+      const pl = (doc.metadata?.reference_number || '').trim().toUpperCase();
+      const srcNames = [...new Set(
+        docs.filter(d => (d.metadata?.reference_number || '').trim().toUpperCase() === pl && pl !== '')
+            .map(d => fileOf.get(d)!)
+      )].join(' + ') || fileOf.get(doc) || '';
+      for (const item of doc.export_permit_pss?.items ?? []) {
+        result.push({ ...item, _filename: srcNames });
       }
     }
     return result;
