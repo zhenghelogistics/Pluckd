@@ -5,6 +5,7 @@ import ResultsTable from './components/ResultsTable';
 import CrmBillingTab from './components/CrmBillingTab';
 import ExportPermitTab from './components/ExportPermitTab';
 import { generatePVPdfFromScratch, generateRVPdfFromScratch } from './services/voucherPdfService';
+import { mergePackingListsByPlNo } from './services/mergePackingLists';
 import DeveloperNotes from './components/DeveloperNotes';
 import LoginScreen from './components/LoginScreen';
 import CustomRulesPanel from './components/CustomRulesPanel';
@@ -172,6 +173,24 @@ function App() {
       }
     });
     if (allDocuments.length === 0) return;
+
+    // Cross-file merge: packing-list files sharing a PL No are combined into one logical doc
+    // (rows unioned, Country of Origin back-filled, mis-placed NPBB-in-PO cleaned) before export.
+    const PSS_TYPE = 'Export Permit Declaration (PSS)';
+    const pssEntries = allDocuments.filter(e => e.data.document_type === PSS_TYPE);
+    if (pssEntries.length) {
+      const nonPss = allDocuments.filter(e => e.data.document_type !== PSS_TYPE);
+      const mergedEntries = mergePackingListsByPlNo(pssEntries.map(e => e.data)).map(d => {
+        const pl = (d.metadata?.reference_number || '').trim().toUpperCase();
+        const filename = [...new Set(
+          pssEntries.filter(e => (e.data.metadata?.reference_number || '').trim().toUpperCase() === pl && pl !== '')
+                    .map(e => e.filename)
+        )].join(' + ') || pssEntries[0].filename;
+        return { data: d, filename };
+      });
+      allDocuments.length = 0;
+      allDocuments.push(...nonPss, ...mergedEntries);
+    }
 
     const zip = new JSZip();
     const groups: Record<string, { data: DocumentData; filename: string }[]> = {};
