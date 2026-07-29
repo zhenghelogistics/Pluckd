@@ -404,7 +404,7 @@ const removeOrphanOPDs = (docs: DocumentData[]): DocumentData[] => {
 };
 
 // Helper to remove duplicate documents
-const deduplicateDocuments = (docs: DocumentData[]): DocumentData[] => {
+export const deduplicateDocuments = (docs: DocumentData[]): DocumentData[] => {
   const uniqueDocs = new Map<string, DocumentData>();
 
   docs.forEach((doc) => {
@@ -480,11 +480,43 @@ const deduplicateDocuments = (docs: DocumentData[]): DocumentData[] => {
       } else {
         key = `DOC_${Math.random()}`;
       }
-      if (!uniqueDocs.has(key)) uniqueDocs.set(key, doc);
+      const existing = uniqueDocs.get(key);
+      if (!existing) {
+        uniqueDocs.set(key, doc);
+      } else if (
+        doc.document_type === 'Export Permit Declaration (PSS)' &&
+        existing.document_type === 'Export Permit Declaration (PSS)'
+      ) {
+        // Two packing-list files of the SAME PL (same reference) — STITCH their line items
+        // instead of the old first-wins-drop that silently lost a whole file.
+        uniqueDocs.set(key, mergePssDocs(existing, doc));
+      }
+      // else: keep first (unchanged for Bill of Lading / Commercial Invoice / etc.)
     }
   });
 
   return Array.from(uniqueDocs.values());
+};
+
+// Merge two "Export Permit Declaration (PSS)" docs that share a reference number.
+// If every item carries a line_no, union by line_no (later wins per line, so re-extracting the
+// whole file on a retry can't double rows); otherwise keep the doc with more items.
+const mergePssDocs = (a: DocumentData, b: DocumentData): DocumentData => {
+  const aItems = a.export_permit_pss?.items ?? [];
+  const bItems = b.export_permit_pss?.items ?? [];
+  const allHaveLineNo = [...aItems, ...bItems].every((i) => typeof i.line_no === 'number');
+  let items;
+  if (allHaveLineNo) {
+    const byLine = new Map<number, typeof aItems[number]>();
+    for (const it of aItems) byLine.set(it.line_no as number, it);
+    for (const it of bItems) byLine.set(it.line_no as number, it);
+    items = [...byLine.values()].sort((x, y) => (x.line_no ?? 0) - (y.line_no ?? 0));
+  } else {
+    items = bItems.length >= aItems.length ? bItems : aItems;
+  }
+  const base = b.export_permit_pss?.printed_nett_total != null ? b
+             : a.export_permit_pss?.printed_nett_total != null ? a : b;
+  return { ...base, export_permit_pss: { ...base.export_permit_pss, items } };
 };
 
 // Split a PDF file into chunks of `chunkSize` pages, returned as base64 strings.

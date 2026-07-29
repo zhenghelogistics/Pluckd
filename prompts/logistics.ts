@@ -128,6 +128,12 @@ EXTRACTION RULES FOR "Export Permit Declaration (PSS)" (Logistics/Shipping Team)
   1. Purchase Order number from PO document (e.g. "PSV26-01-0013").
   2. "Your order:" / "Your order No." / "Order No." / "Customer PO" field on Proforma Invoice or Delivery Note.
 - invoice_number: Invoice Number from the invoice header. Accept: "Invoice No.", "Inv. No.", "Document No.", "Proforma Invoice No.", "Invoice Number" (e.g. "IN26030237", "170222918").
+- line_no: ONLY when the source is a PACKING LIST with a numbered "No" column — copy that row's integer (1, 2, 3 …) into line_no. If there is no numbered column, set line_no to null.
+- PACKING-LIST TOTALS (set on the export_permit_pss object, NOT per item — ONLY from a packing list that prints them, else null):
+  * printed_nett_total: the printed "Sub Total" NETT weight grand total as a number (e.g. 1758.000 → 1758.0).
+  * printed_gross_total: the printed "Sub Total" GROSS weight grand total as a number.
+  * printed_package_count: the integer from "TOTAL PACKING … N PACKAGES" (e.g. "4 PACKAGES" → 4).
+  * pages_total: the N in a "Page x/N" footer (e.g. "Page 3/12" → 12).
 
 IMPORTANT:
 - If a value is not found, return null. Do NOT guess.
@@ -207,8 +213,13 @@ Respond ONLY with valid JSON matching this exact structure:
         "country_of_origin": "string or null"
       },
       "export_permit_pss": {
+        "printed_nett_total": "number or null (packing-list Sub Total nett)",
+        "printed_gross_total": "number or null (packing-list Sub Total gross)",
+        "printed_package_count": "integer or null (TOTAL PACKING N PACKAGES)",
+        "pages_total": "integer or null (the N in Page x/N)",
         "items": [
           {
+            "line_no": "integer or null (packing-list 'No' column)",
             "hs_code": "string or null",
             "quantity": "integer string or null",
             "uom": "string or null",

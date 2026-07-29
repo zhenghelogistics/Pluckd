@@ -160,6 +160,7 @@ export interface CdasReport {
 }
 
 export interface ExportPermitPSSItem {
+  line_no?: number | null; // "No" column on a packing list — lets the cross-check pinpoint rows
   hs_code?: string | null;
   quantity?: string | null;
   uom?: string | null;
@@ -175,6 +176,11 @@ export interface ExportPermitPSSItem {
 
 export interface ExportPermitPSS {
   items?: ExportPermitPSSItem[] | null;
+  // Packing-list document totals (used by the cross-check to confirm nothing was dropped)
+  printed_nett_total?: number | null;
+  printed_gross_total?: number | null;
+  printed_package_count?: number | null;
+  pages_total?: number | null;
 }
 
 export interface DocumentData {
