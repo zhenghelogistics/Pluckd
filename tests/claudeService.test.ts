@@ -22,12 +22,18 @@ import type { DocumentData } from '../types';
 const makeDoc = (overrides: Partial<DocumentData> = {}): DocumentData => ({
   document_type: 'Bill of Lading',
   metadata: { reference_number: 'BL-001', date: '2025-01-01' },
+  logistics_details: {},
+  financials: {},
+  cargo_details: {},
   ...overrides,
 });
 
 const makePV = (paymentTo: string, invoiceNo: string, amount: string): DocumentData => ({
   document_type: 'Payment Voucher/GL',
   metadata: { reference_number: invoiceNo, date: '2025-01-01' },
+  logistics_details: {},
+  financials: {},
+  cargo_details: {},
   payment_voucher_details: {
     payment_to: paymentTo,
     carrier_invoice_number: invoiceNo,
@@ -43,6 +49,9 @@ const makePV = (paymentTo: string, invoiceNo: string, amount: string): DocumentD
 const makeAllied = (containerNo: string, dhcIn?: string): DocumentData => ({
   document_type: 'Allied Report',
   metadata: { reference_number: containerNo, date: '2025-01-01' },
+  logistics_details: {},
+  financials: {},
+  cargo_details: {},
   allied_report: {
     container_booking_no: containerNo,
     dhc_in: dhcIn ?? null,

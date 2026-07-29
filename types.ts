@@ -120,6 +120,9 @@ export interface OutwardPermitDeclaration {
   po_description?: string | null;
   description_match?: string | null;
   country_of_origin?: string | null;
+  // Read by dedup/normalize in claudeService (may be present in raw Claude output)
+  factory?: string | null;
+  products?: { description?: string | null }[] | null;
 }
 
 export interface AlliedReport {

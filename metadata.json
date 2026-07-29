@@ -1,5 +1,5 @@
 {
-  "name": "Remix: Invoice Intelligence",
-  "description": "Automated PDF invoice data extraction using Gemini Flash. Upload invoices to extract Shipper, Invoice #, Date, Amount, and Port of Loading, then export to CSV.",
+  "name": "Pluckd — Logistics Document Extraction",
+  "description": "AI-powered PDF data extraction for logistics documents (packing lists, bills of lading, tax invoices, permits, container reports) using Anthropic Claude. Extracts structured data by team and exports to CSV/ZIP and voucher PDFs.",
   "requestFramePermissions": []
 }

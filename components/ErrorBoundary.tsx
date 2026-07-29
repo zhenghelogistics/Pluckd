@@ -2,9 +2,10 @@ import React from 'react';
 import { AlertTriangle, RefreshCw } from 'lucide-react';
 import * as Sentry from '@sentry/react';
 
+interface Props { children?: React.ReactNode; }
 interface State { error: Error | null; }
 
-export default class ErrorBoundary extends React.Component<React.PropsWithChildren, State> {
+export default class ErrorBoundary extends React.Component<Props, State> {
   state: State = { error: null };
 
   static getDerivedStateFromError(error: Error): State {

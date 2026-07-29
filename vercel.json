@@ -5,9 +5,6 @@
     },
     "api/enrichPSS.ts": {
       "maxDuration": 300
-    },
-    "api/templateChat.ts": {
-      "maxDuration": 300
     }
   }
 }

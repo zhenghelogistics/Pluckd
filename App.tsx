@@ -215,7 +215,7 @@ function App() {
           case 'Payment Voucher/GL': {
             const pv = d.payment_voucher_details || {};
             const charges = pv.charges_summary || fin.line_item_charges?.map(c => `${c.description}: ${c.amount}`).join('; ') || '';
-            const stripCurr = (v?: string | null) => (v || '').replace(/SGD\s*/gi, '').replace(/USD\s*/gi, '').trim();
+            const stripCurr = (v?: string | number | null) => String(v ?? '').replace(/SGD\s*/gi, '').replace(/USD\s*/gi, '').trim();
             if (pv.bl_entries && pv.bl_entries.length > 0) {
               const carrierParts = (pv.carrier_invoice_number || m.reference_number || '').split(',').map((s: string) => s.trim());
               const pssParts = (pv.pss_invoice_number || '').split(',').map((s: string) => s.trim());
