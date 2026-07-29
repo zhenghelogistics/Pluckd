@@ -14,8 +14,19 @@ import {
   validateDocumentData,
   mergeSameSupplierPVs,
   deduplicateByContainer,
+  deduplicateDocuments,
 } from '../services/claudeService';
 import type { DocumentData } from '../types';
+
+// Build a PSS (packing-list) doc with the given line items.
+const makePss = (ref: string, items: { line_no: number; nett_weight: string }[]): DocumentData => ({
+  document_type: 'Export Permit Declaration (PSS)',
+  metadata: { reference_number: ref, date: '2026-06-16' },
+  logistics_details: {},
+  financials: {},
+  cargo_details: {},
+  export_permit_pss: { items: items.map((i) => ({ line_no: i.line_no, nett_weight: i.nett_weight })) },
+});
 
 // ─── Helpers ───────────────────────────────────────────────────────────────
 
@@ -192,5 +203,34 @@ describe('deduplicateByContainer', () => {
     );
     expect(byContainer['AAAU0000001']).toBe('100.00');
     expect(byContainer['BBBU9999999']).toBe('999.00');
+  });
+});
+
+// ─── deduplicateDocuments: PSS same-reference stitch (fixes the "file vanishes" bug) ──
+
+describe('deduplicateDocuments — PSS stitch instead of drop', () => {
+  it('STITCHES two files of the same packing list instead of dropping one', () => {
+    const fileA = makePss('SO26060535', [
+      { line_no: 1, nett_weight: '19' }, { line_no: 2, nett_weight: '40' }, { line_no: 3, nett_weight: '10' },
+    ]);
+    const fileB = makePss('SO26060535', [
+      { line_no: 4, nett_weight: '39' }, { line_no: 5, nett_weight: '41' },
+    ]);
+    const out = deduplicateDocuments([fileA, fileB]).filter(d => d.document_type === 'Export Permit Declaration (PSS)');
+    expect(out).toHaveLength(1);
+    expect(out[0].export_permit_pss!.items!.map(i => i.line_no)).toEqual([1, 2, 3, 4, 5]);
+  });
+
+  it('does NOT double rows when the same file is merged twice (retry safety)', () => {
+    const f = makePss('SO26060535', [{ line_no: 1, nett_weight: '19' }, { line_no: 2, nett_weight: '40' }]);
+    const out = deduplicateDocuments([f, JSON.parse(JSON.stringify(f))]).filter(d => d.document_type === 'Export Permit Declaration (PSS)');
+    expect(out).toHaveLength(1);
+    expect(out[0].export_permit_pss!.items).toHaveLength(2);
+  });
+
+  it('keeps different packing lists (different reference) separate', () => {
+    const a = makePss('SO26060535', [{ line_no: 1, nett_weight: '19' }]);
+    const b = makePss('SO26060999', [{ line_no: 1, nett_weight: '5' }]);
+    expect(deduplicateDocuments([a, b]).filter(d => d.document_type === 'Export Permit Declaration (PSS)')).toHaveLength(2);
   });
 });
