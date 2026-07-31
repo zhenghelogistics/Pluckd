@@ -10,7 +10,8 @@ Sentry.init({
   environment: import.meta.env.MODE,
   integrations: [Sentry.browserTracingIntegration()],
   tracesSampleRate: 0.2,
-  sendDefaultPii: true,
+  // Do NOT attach personally-identifiable info (IP, request details) to error reports.
+  sendDefaultPii: false,
 });
 
 const rootElement = document.getElementById('root');
