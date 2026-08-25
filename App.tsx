@@ -10,7 +10,7 @@ import DeveloperNotes from './components/DeveloperNotes';
 import LoginScreen from './components/LoginScreen';
 import CustomRulesPanel from './components/CustomRulesPanel';
 import { FileStatus, DocumentData } from './types';
-import { AppConfig } from './config';
+import { AppConfig, labelFor } from './config';
 import { UserRole } from './users';
 // @ts-ignore
 import JSZip from 'jszip';
@@ -47,8 +47,8 @@ const TAB_SHORT_LABEL: Record<string, string> = {
   'All Files': 'All',
   'All': 'All',
   'Logistics Local Charges Report': 'LCR',
-  'Outward Permit Declaration': 'OPD',
-  'Export Permit Declaration (PSS)': 'PSS',
+  'Outward Permit Declaration': 'Export Team Permits',
+  'Export Permit Declaration (PSS)': 'Import Team Permits',
   'Payment Voucher/GL': 'PV/GL',
   'Bill of Lading': 'BL',
   'CDAS Report': 'CDAS',
@@ -353,7 +353,7 @@ function App() {
               className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-all cursor-pointer text-left ${activeTab === tab ? 'bg-primary-container text-white' : 'text-surface-container hover:bg-primary-container/60 hover:text-white'}`}
             >
               <span className="flex-shrink-0">{TAB_ICONS[tab] || <FileText size={15} />}</span>
-              <span className="truncate text-xs">{tab}</span>
+              <span className="truncate text-xs">{labelFor(tab)}</span>
             </button>
           ))}
           {hasDevNotes && (
@@ -410,7 +410,7 @@ function App() {
         <header className="bg-surface-lowest px-6 py-3 flex-shrink-0">
           <div className="flex items-center justify-between gap-4">
             <div>
-              <h1 className="text-sm font-semibold text-primary">{activeTab}</h1>
+              <h1 className="text-sm font-semibold text-primary">{labelFor(activeTab)}</h1>
               <p className="text-xs text-[#4a5568]">AI-powered logistics document extraction</p>
             </div>
             <div className="flex items-center gap-2">

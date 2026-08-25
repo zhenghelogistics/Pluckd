@@ -73,7 +73,7 @@ const ExportPermitTab: React.FC<Props> = ({ files }) => {
   if (items.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center min-h-64 rounded-xl border-2 border-dashed border-outline/30 bg-surface-lowest text-[#4a5568]">
-        <p className="font-medium">No Export Permit Declaration (PSS) data extracted yet.</p>
+        <p className="font-medium">No Import Team Permits data extracted yet.</p>
         <p className="text-sm mt-1">Upload and process a PSS shipment bundle PDF (PO + Invoice + Packing List).</p>
       </div>
     );

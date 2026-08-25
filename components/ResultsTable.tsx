@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ProcessedFile, FileStatus, DocumentData } from '../types';
-import { AppConfig } from '../config';
+import { AppConfig, labelFor } from '../config';
 
 const TAB_SHORT_LABEL: Record<string, string> = {
   'All Files': 'All',
@@ -348,7 +348,7 @@ const ResultsTable: React.FC<ResultsTableProps> = ({ files, onUpdateIncoterm, on
               <tbody className="bg-surface-lowest">
                 {files.map(file => {
                   const typesFound = file.data
-                    ? Array.from(new Set(file.data.map(d => d.document_type))).join(', ')
+                    ? Array.from(new Set(file.data.map(d => labelFor(d.document_type)))).join(', ')
                     : '-';
                   return (
                     <tr key={file.id} className={`hover:bg-surface-low transition-colors ${selectedIds.has(file.id) ? 'bg-red-50' : ''}`}>
@@ -583,7 +583,7 @@ const ResultsTable: React.FC<ResultsTableProps> = ({ files, onUpdateIncoterm, on
                 {activeTab === 'All' && userRole !== 'logistics' ? (
                    // Generic Row for "All" view
                    <>
-                    <td className="whitespace-nowrap py-3.5 pr-3 text-sm font-medium text-primary">{d.document_type}</td>
+                    <td className="whitespace-nowrap py-3.5 pr-3 text-sm font-medium text-primary">{labelFor(d.document_type)}</td>
                     <td className="whitespace-nowrap px-3 py-3.5 text-sm text-[#4a5568]">{d.metadata?.reference_number || '-'}</td>
                     <td className="whitespace-nowrap px-3 py-3.5 text-sm text-[#4a5568]">{d.metadata?.date || '-'}</td>
                     <td className="whitespace-nowrap px-3 py-3.5 text-sm text-[#4a5568]" title={d.metadata?.parties?.shipper_supplier || ''}>

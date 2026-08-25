@@ -86,3 +86,13 @@ export const AppConfig = {
   }
 
 };
+
+// Friendly names shown to users. Internal document_type keys stay the same everywhere
+// (prompt, pipeline, stored data); only the on-screen label changes.
+export const DISPLAY_LABELS: Record<string, string> = {
+  'Outward Permit Declaration': 'Export Team Permits',
+  'Export Permit Declaration (PSS)': 'Import Team Permits',
+};
+
+// Return the friendly label for a document type / tab, falling back to the key itself.
+export const labelFor = (type: string): string => DISPLAY_LABELS[type] ?? type;
