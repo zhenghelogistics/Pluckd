@@ -404,6 +404,15 @@ const removeOrphanOPDs = (docs: DocumentData[]): DocumentData[] => {
 };
 
 // Helper to remove duplicate documents
+// Count how many fields of an extracted sub-object actually carry a value.
+// Claude's JSON is cast, not validated, so a field the types declare as `string` can
+// arrive as a number (e.g. total_payable_amount: 1234.5). Stringify before trimming —
+// calling .trim() on a raw number throws and takes the whole extraction down.
+const countFilledFields = (obj: object | undefined | null): number =>
+  Object.values(obj || {}).filter(
+    (v) => v != null && String(v).trim().length > 0
+  ).length;
+
 export const deduplicateDocuments = (docs: DocumentData[]): DocumentData[] => {
   const uniqueDocs = new Map<string, DocumentData>();
 
@@ -431,12 +440,8 @@ export const deduplicateDocuments = (docs: DocumentData[]): DocumentData[] => {
 
       if (uniqueDocs.has(key)) {
         const existing = uniqueDocs.get(key)!;
-        const existingFields = Object.values(existing.logistics_local_charges || {}).filter(
-          (v) => v && (v as string).trim().length > 0
-        ).length;
-        const currentFields = Object.values(l).filter(
-          (v) => v && (v as string).trim().length > 0
-        ).length;
+        const existingFields = countFilledFields(existing.logistics_local_charges);
+        const currentFields = countFilledFields(l);
         if (currentFields > existingFields) uniqueDocs.set(key, doc);
       } else {
         uniqueDocs.set(key, doc);
@@ -460,8 +465,8 @@ export const deduplicateDocuments = (docs: DocumentData[]): DocumentData[] => {
         // less context, so the later chunk's version is more accurate. Strict > still
         // replaces when the later entry is clearly more complete.
         const existing = uniqueDocs.get(key)!;
-        const existingFields = Object.values(existing.outward_permit_declaration || {}).filter(v => v != null && (v as string).toString().trim().length > 0).length;
-        const currentFields = Object.values(opd || {}).filter(v => v != null && (v as string).toString().trim().length > 0).length;
+        const existingFields = countFilledFields(existing.outward_permit_declaration);
+        const currentFields = countFilledFields(opd);
         if (currentFields >= existingFields) uniqueDocs.set(key, doc);
       }
     } else if (doc.document_type === 'Allied Report') {

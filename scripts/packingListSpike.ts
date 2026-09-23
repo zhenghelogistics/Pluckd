@@ -88,7 +88,7 @@ async function readChunk(base64: string, extraInstruction = ""): Promise<ChunkCa
     model: MODEL,
     max_tokens: 8000,
     temperature: 0,
-    system: [{ type: "text", text: CAPTURE_PROMPT, cache_control: { type: "ephemeral" } }],
+    system: CAPTURE_PROMPT,
     messages: [
       {
         role: "user",

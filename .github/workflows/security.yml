@@ -1,0 +1,30 @@
+name: Security audit
+
+# Dependency vulnerabilities appear over time without anyone touching the code,
+# so this runs on a schedule rather than on push.
+on:
+  schedule:
+    # 09:00 Singapore time every Monday (01:00 UTC).
+    - cron: '0 1 * * 1'
+  workflow_dispatch: # also runnable on demand from the Actions tab
+
+jobs:
+  audit:
+    name: npm audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Fails only on high/critical. Low and moderate are reported but not raised
+      # as an alarm, so the weekly signal stays meaningful.
+      - name: Audit dependencies
+        run: npm audit --audit-level=high

@@ -1,23 +1,46 @@
 name: CI
 
+# Runs on every branch push and every pull request, so a problem is caught before
+# it reaches main (and therefore before Vercel deploys it to the live site).
 on:
   push:
-    branches: [main]
+    branches: ['**']
   pull_request:
+
+# If you push again while a run is still going, cancel the older run.
+# Saves CI minutes and means the result you see always reflects the latest commit.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   check:
+    name: Type-check, test, build
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
-      - run: npm ci
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Advisory only: the codebase currently has pre-existing lint errors that are
+      # style, not bugs. Reported as a warning so it never blocks a release.
+      # Make this blocking once the existing 10 errors are cleared.
+      - name: Lint (advisory)
+        run: npm run lint || echo "::warning::Lint reported issues — advisory, not blocking"
+
+      # Everything below is blocking. A failure here stops the merge.
       - name: Type-check
         run: npx tsc --noEmit
+
       - name: Tests
         run: npm test
+
       - name: Build
         run: npm run build
