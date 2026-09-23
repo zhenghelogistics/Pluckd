@@ -112,6 +112,9 @@ export function verifyPackingList(
   const grossMatches = typeof printed.gross === "number" ? Math.abs(grossSum - printed.gross) <= tol : null;
 
   const issues: string[] = [];
+  // An empty capture is never "complete". Without this guard a reader that returned
+  // nothing at all scores a clean pass — the exact silent failure this brain exists to catch.
+  if (items.length === 0) issues.push("No line items captured — the reader returned an empty table.");
   if (missing.length) issues.push(`Missing line numbers: ${missing.join(", ")}`);
   if (duplicates.length) issues.push(`Duplicate line numbers: ${duplicates.join(", ")}`);
   if (missingPages.length) issues.push(`Missing pages: ${missingPages.join(", ")}`);
@@ -119,10 +122,13 @@ export function verifyPackingList(
     issues.push(`Nett weight sum ${nettSum} != printed Sub Total ${printed.nett} (off by ${round3(nettSum - (printed.nett as number))})`);
   if (grossMatches === false)
     issues.push(`Gross weight sum ${grossSum} != printed Sub Total ${printed.gross} (off by ${round3(grossSum - (printed.gross as number))})`);
-  if (nettMatches === null && grossMatches === null && !capture.printed_totals)
+  // Covers both a missing printed_totals object and an empty one ({}), which is what a
+  // reader that found no "Sub Total" line actually returns.
+  if (nettMatches === null && grossMatches === null)
     issues.push("No printed totals captured — cannot run the sum self-check (weakest verification).");
 
   const complete =
+    items.length > 0 &&
     missing.length === 0 &&
     missingPages.length === 0 &&
     nettMatches !== false &&
